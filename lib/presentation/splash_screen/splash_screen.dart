@@ -45,7 +45,7 @@ class _SplashScreenState extends State<SplashScreen> {
           height: 200.h,
           width: 200.h,
           child: const CustomImageView(
-            imagePath: 'lib/assets/images/logo.svg',
+            imagePath: 'lib/assets/images/Logo.png',
             fit: BoxFit.contain,
           ),
         ),

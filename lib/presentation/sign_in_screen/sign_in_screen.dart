@@ -88,7 +88,7 @@ class _SignInScreenState extends State<SignInScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 100),
+          const SizedBox(height: 50),
           _buildWelcomeMessage(),
           const SizedBox(height: 50),
           _buildEmailField(),

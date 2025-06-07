@@ -7,6 +7,12 @@ import 'package:flutter_webview_plugin_ios_android/flutter_webview_plugin_ios_an
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
+import '../../core/vnpay_config.dart';
+import '../../model/Cart/cart_item.dart';
+import '../Database/order_service.dart';
+
+
+
 //[VNPayHashType] List of Hash Type in VNPAY, default is HMACSHA512
 enum VNPayHashType {
   SHA256,
@@ -96,8 +102,8 @@ class VNPAYFlutter {
     String hashData =
         hashDataBuffer.toString().substring(0, hashDataBuffer.length - 1);
     String query = sortedParam.entries
-        .map((e) => '${e.key}=${e.value}')
-        .join('&'); //Uri(host: url, queryParameters: sortedParam).query;
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
     String vnpSecureHash = "";
 
     if (vnPayHashType == VNPayHashType.SHA256) {
@@ -108,11 +114,13 @@ class VNPAYFlutter {
           .convert(utf8.encode(hashData))
           .toString();
     }
+
     String paymentUrl =
         "$url?$query&vnp_SecureHashType=${vnPayHashType.toValueString()}&vnp_SecureHash=$vnpSecureHash";
     debugPrint("=====>[PAYMENT URL]: $paymentUrl");
     return paymentUrl;
   }
+
 
   /// Show payment webview
   ///

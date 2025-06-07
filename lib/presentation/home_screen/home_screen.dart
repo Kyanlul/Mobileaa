@@ -8,6 +8,8 @@ import '../../widgets/custom_text_form_field.dart';
 import 'package:untitled/widgets/product_card.dart';
 import 'provider/home_screen_provider.dart';
 import '../../widgets/custom_button_bar.dart';
+import 'package:intl/intl.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +26,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
+  final currencyFormatter =
+  NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
   late Future<List<Product>> _recommendedProducts;
   @override
   void initState() {
@@ -253,7 +257,7 @@ class HomeScreenState extends State<HomeScreen> {
                         );
                       },
                       child: Container(
-                        width: 160.h,
+                        width: 220.h,
                         margin: EdgeInsets.only(right: 12.h),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -296,12 +300,14 @@ class HomeScreenState extends State<HomeScreen> {
                                   Row(
                                     children: [
                                       Text(
-                                        '\$${product.discounted_price}',
-                                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                        currencyFormatter.format(product.discounted_price * 1000),
+                                        style: CustomTextStyles.labelLargePrimary
+                                            .copyWith(fontSize: 18),
                                       ),
-                                      SizedBox(width: 6.h),
+
+                                      SizedBox(width: 12.h),
                                       Text(
-                                        '\$${product.actual_price}',
+                                        currencyFormatter.format(product.actual_price * 1000),
                                         style: TextStyle(
                                           color: Colors.grey,
                                           decoration: TextDecoration.lineThrough,
@@ -391,7 +397,7 @@ class HomeScreenState extends State<HomeScreen> {
                         );
                       },
                       child: Container(
-                        width: 160.h,
+                        width: 230.h,
                         margin: EdgeInsets.only(right: 12.h),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -434,12 +440,12 @@ class HomeScreenState extends State<HomeScreen> {
                                   Row(
                                     children: [
                                       Text(
-                                        '\$${product.discounted_price}',
+                                        currencyFormatter.format(product.discounted_price * 1000),
                                         style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                                       ),
                                       SizedBox(width: 6.h),
                                       Text(
-                                        '\$${product.actual_price}',
+                                        currencyFormatter.format(product.actual_price * 1000),
                                         style: TextStyle(
                                           color: Colors.grey,
                                           decoration: TextDecoration.lineThrough,

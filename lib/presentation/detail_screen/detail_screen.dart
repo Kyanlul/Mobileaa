@@ -7,6 +7,8 @@ import 'package:untitled/widgets/custom_elevated_button.dart';
 import 'package:untitled/widgets/custom_rating_bar.dart';
 import 'package:untitled/widgets/product_card.dart';
 import '../../model/reviews.dart';
+import 'package:intl/intl.dart';
+
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({super.key, required this.product});
@@ -19,6 +21,8 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  final currencyFormatter =
+  NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
   bool isExpandedDetails = false;
   bool isExpandedReviews = false;
 
@@ -128,9 +132,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 children: [
                   // Giá đã giảm
                   Text(
-                    '\$${widget.product.discounted_price}',
+                    currencyFormatter.format(widget.product.discounted_price * 1000),
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFFF7043), // xanh lá đậm
                     ),
@@ -139,10 +143,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                   // Giá gốc
                   Text(
-                    '\$${widget.product.actual_price}',
+                    currencyFormatter.format(widget.product.actual_price * 1000),
                     style: const TextStyle(
                       decoration: TextDecoration.lineThrough,
-                      fontSize: 16,
+                      fontSize: 12,
                       color: Colors.grey,
                     ),
                   ),

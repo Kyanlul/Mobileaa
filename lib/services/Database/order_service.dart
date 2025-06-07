@@ -13,14 +13,26 @@ class OrdersService {
   /// [amount]: tổng tiền (đơn vị VNĐ)
   /// [expireDate]: thời hạn thanh toán (DateTime)
   /// [ipAddress]: IP của người dùng (mặc định '0.0.0.0')
+
+  String getNewOrderId() {
+    final docRef = ordersCollection.doc();
+    return docRef.id;
+  }
+
+  /// Ghi dữ liệu order đã hoàn chỉnh lên Firestore, dùng sẵn order.orderId
+  Future<void> saveOrder(OrdersModel order) async {
+    final docRef = ordersCollection.doc(order.orderId);
+    await docRef.set(order.toJson());
+  }
+
   String generateVnPayUrl({
     required String orderId,
     required double amount,
     required DateTime expireDate,
-    String ipAddress = '0.0.0.0',
+    String ipAddress = '192.168.10.10',
   }) {
     return VNPAYFlutter.instance.generatePaymentUrl(
-      version: '2.1.0',
+      version: '2.0.1',
       tmnCode: VNPayConfig.tmnCode,
       txnRef: orderId,
       amount: amount,
@@ -30,6 +42,8 @@ class OrdersService {
       vnpayExpireDate: expireDate,
     );
   }
+
+
 
   Future<void> createOrder(OrdersModel order) async {
     try {

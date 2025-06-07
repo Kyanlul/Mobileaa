@@ -10,6 +10,9 @@ import 'package:untitled/services/Database/cart_service.dart';
 import 'package:untitled/services/Database/order_service.dart';
 import 'package:untitled/services/Database/user_service.dart';
 import 'package:untitled/widgets/custom_elevated_button.dart';
+import 'package:quickalert/quickalert.dart';
+import 'package:intl/intl.dart';
+
 
 import '../../model/Cart/cart_item.dart';
 import '../../core/vnpay_config.dart';
@@ -27,6 +30,8 @@ class OrderScreen extends StatefulWidget {
 }
 
 class _OrderScreenState extends State<OrderScreen> {
+  final currencyFormatter =
+  NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
   late Future<CustomUser> customUser;
   String userId = '';
   late List<CartItem> listSelect;
@@ -72,6 +77,70 @@ class _OrderScreenState extends State<OrderScreen> {
       ward = address.ward;
       print(' address : $address');
     }
+  }
+
+  String responseCode = '';
+  Future<void> onPayment() async {
+    final double amount = double.parse((calculateTotal() + _shipPrice).toStringAsFixed(0));
+    final paymentUrl = VNPAYFlutter.instance.generatePaymentUrl(
+      url:
+      'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html', //vnpay url, default is https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      version: '2.0.1',
+      tmnCode: '0365TSPK', //vnpay tmn code, get from vnpay
+      txnRef: DateTime.now().millisecondsSinceEpoch.toString(),
+      orderInfo: 'Pay 30.000 VND', //order info, default is Pay Order
+      amount: amount * 1000,
+      returnUrl:
+      'https://arguably-divine-hamster.ngrok-free.app', //https://sandbox.vnpayment.vn/apis/docs/huong-dan-tich-hop/#code-returnurl
+      ipAdress: '192.168.10.10',
+      vnpayHashKey: '3ZMWT6A55CKSLMXJVD86H5ZRUVGCFVJK', //vnpay hash key, get from vnpay
+      vnPayHashType: VNPayHashType
+          .HMACSHA512, //hash type. Default is HMACSHA512, you can chang it in: https://sandbox.vnpayment.vn/merchantv2,
+      vnpayExpireDate: DateTime.now().add(const Duration(hours: 1)),
+    );
+    await VNPAYFlutter.instance.show(
+      context: context,
+      paymentUrl: paymentUrl,
+      onPaymentSuccess: (params) async {
+        setState(() {
+          responseCode = params['vnp_ResponseCode'];
+        });
+        QuickAlert.show(
+          context: context,
+          type: QuickAlertType.success,
+          text: 'Transaction Completed Successfully!',
+        );
+
+        OrdersModel order = OrdersModel(
+          orderId: '', // Service sẽ tự generate ID mới
+          userId: userId,
+          productItems: listSelect,
+          totalPrice: amount,
+          status: 'Paid',
+          createdAt: DateTime.now(),
+        );
+        await ordersService.createOrder(order);
+        await cartService.deleteProduct(userId);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AfterOrder(),
+          ),
+        );
+      },
+      onPaymentError: (params) {
+        setState(() {
+          responseCode = 'Error';
+        });
+
+        QuickAlert.show(
+          context: context,
+          type: QuickAlertType.error,
+          title: 'Oops...',
+          text: 'Sorry, something went wrong',
+        );
+      },
+    );
   }
 
   @override
@@ -245,7 +314,7 @@ class _OrderScreenState extends State<OrderScreen> {
                                   Row(
                                     children: [
                                       Text(
-                                        '\$${item.price}',
+                                        currencyFormatter.format(item.price * 1000),
                                         style: CustomTextStyles.labelLargePrimary
                                             .copyWith(fontSize: 18),
                                       ),
@@ -262,7 +331,7 @@ class _OrderScreenState extends State<OrderScreen> {
                           const Spacer(),
                           Text('${listSelect.length} items: '),
                           Text(
-                            '\$$sum',
+                            currencyFormatter.format(sum),
                             style: CustomTextStyles.labelLargePrimary,
                           ),
                           const SizedBox(width: 14),
@@ -495,7 +564,7 @@ class _OrderScreenState extends State<OrderScreen> {
                           ),
                           const Spacer(),
                           Text(
-                            '\$$_shipPrice',
+                            currencyFormatter.format(_shipPrice * 1000),
                             style: TextStyle(color: LightCodeColors().orangeA200),
                           ),
                           const SizedBox(width: 16),
@@ -512,7 +581,7 @@ class _OrderScreenState extends State<OrderScreen> {
                           ),
                           const Spacer(),
                           Text(
-                            '\$${(calculateTotal() + _shipPrice).toStringAsFixed(2)}',
+                            currencyFormatter.format((calculateTotal() + _shipPrice) * 1000),
                             style: TextStyle(color: LightCodeColors().orangeA200),
                           ),
                           const SizedBox(width: 16),
@@ -546,84 +615,77 @@ class _OrderScreenState extends State<OrderScreen> {
                         }
 
                         if (_paymentMethod == 'COD (Thanh toán khi nhận hàng)') {
-                          // --- COD: Lưu đơn ngay lập tức ---
+                          // --- COD: lưu đơn ngay ---
+                          String newOrderId = ordersService.getNewOrderId();
                           OrdersModel order = OrdersModel(
-                            orderId: '',
+                            orderId: newOrderId,
                             userId: userId,
                             productItems: listSelect,
                             totalPrice: totalAmount,
                             status: 'Pending',
                             createdAt: DateTime.now(),
                           );
-
-                          await ordersService.createOrder(order);
+                          await ordersService.saveOrder(order);
                           await cartService.deleteProduct(userId);
-
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => const AfterOrder(),
-                            ),
+                            MaterialPageRoute(builder: (context) => const AfterOrder()),
                           );
                         } else if (_paymentMethod == 'VNPay') {
-                          // --- VNPay: Mở WebView, chờ callback ---
-                          // 1. Sinh một orderId tạm để đưa vào vnp_TxnRef
-                          final String orderId =
-                          DateTime.now().millisecondsSinceEpoch.toString();
-                          // 2. Tạo expires = now + 15 phút (tuỳ bạn)
-                          final DateTime expireDate =
-                          DateTime.now().add(const Duration(minutes: 15));
-
-                          // 3. Sinh paymentUrl
-                          final String paymentUrl =
-                          ordersService.generateVnPayUrl(
-                            orderId: orderId,
-                            amount: totalAmount,
-                            expireDate: expireDate,
-                            ipAddress: '0.0.0.0',
-                          );
-
-                          // 4. Mở WebView / browser để thanh toán VNPAY
-                          await VNPAYFlutter.instance.show(
-                            context: context,
-                            paymentUrl: paymentUrl,
-                            appBarTitle: 'Thanh toán VNPAY',
-                            onPaymentSuccess: (params) async {
-                              // Khi responseCode == "00" (thành công)
-                              // 5. Lưu đơn hàng vào Firestore (sau khi thanh toán)
-                              OrdersModel order = OrdersModel(
-                                orderId: '', // Service sẽ tự generate ID mới
-                                userId: userId,
-                                productItems: listSelect,
-                                totalPrice: totalAmount,
-                                status: 'Paid',
-                                createdAt: DateTime.now(),
-                              );
-                              await ordersService.createOrder(order);
-                              await cartService.deleteProduct(userId);
-
-                              // 6. Điều hướng sang màn AfterOrder
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const AfterOrder(),
-                                ),
-                              );
-                            },
-                            onPaymentError: (params) {
-                              // Thanh toán thất bại hoặc user hủy
-                              String code = params['vnp_ResponseCode'] ?? 'N/A';
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Thanh toán VNPAY thất bại (code: $code)',
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        } else {
-                          // Nếu bạn sau này thêm "Chuyển khoản" riêng, xử lý ở đây
+                          onPayment();
+                          // // --- VNPay: mở WebView, chờ callback ---
+                          // final String orderId = DateTime.now().millisecondsSinceEpoch.toString();
+                          // // 2. Tạo expireDate (Ví dụ 15 phút sau)
+                          // final DateTime expireDate = DateTime.now().add(const Duration(minutes: 15));
+                          // // 3. Sinh URL thanh toán VNPAY
+                          // final String paymentUrl = ordersService.generateVnPayUrl(
+                          //   orderId: orderId,
+                          //   amount: totalAmount,
+                          //   expireDate: expireDate,
+                          //   ipAddress: '192.168.10.10',
+                          // );
+                          //
+                          // // 4. Mở WebView / browser để thanh toán VNPAY
+                          // await VNPAYFlutter.instance.show(
+                          //   context: context,
+                          //   paymentUrl: paymentUrl,
+                          //   appBarTitle: 'Thanh toán VNPAY',
+                          //   onPaymentSuccess: (params) async {
+                          //     // Khi responseCode == "00" (thành công)
+                          //     // 5. Lưu đơn hàng vào Firestore (sau khi thanh toán)
+                          //     OrdersModel order = OrdersModel(
+                          //       orderId: '', // Service sẽ tự generate ID mới
+                          //       userId: userId,
+                          //       productItems: listSelect,
+                          //       totalPrice: totalAmount,
+                          //       status: 'Paid',
+                          //       createdAt: DateTime.now(),
+                          //     );
+                          //     await ordersService.createOrder(order);
+                          //     await cartService.deleteProduct(userId);
+                          //
+                          //     // 6. Điều hướng sang màn AfterOrder
+                          //     Navigator.push(
+                          //       context,
+                          //       MaterialPageRoute(
+                          //         builder: (context) => const AfterOrder(),
+                          //       ),
+                          //     );
+                          //   },
+                          //   onPaymentError: (params) {
+                          //     // Thanh toán thất bại hoặc user hủy
+                          //     String code = params['vnp_ResponseCode'] ?? 'N/A';
+                          //     ScaffoldMessenger.of(context).showSnackBar(
+                          //       SnackBar(
+                          //         content: Text(
+                          //           'Thanh toán VNPAY thất bại (code: $code)',
+                          //         ),
+                          //       ),
+                          //     );
+                          //   },
+                          // );
+                        // } else {
+                        //   // Nếu bạn sau này thêm "Chuyển khoản" riêng, xử lý ở đây
                         }
                       },
                     ),
@@ -658,7 +720,7 @@ class _OrderScreenState extends State<OrderScreen> {
           child: Row(
             children: [
               Expanded(child: Text(title)),
-              Text('${price.toString()} \$'),
+              Text(currencyFormatter.format(price * 1000)),
               const SizedBox(width: 8.0),
               Text(description),
             ],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:untitled/core/app_export.dart';
 import 'package:untitled/presentation/orders_screen/order_screen.dart';
 import 'package:untitled/services/Database/cart_service.dart';
+import 'package:intl/intl.dart';
+
 
 import '../../model/Cart/cart_item.dart';
 import '../../model/product.dart';
@@ -16,6 +18,8 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  final currencyFormatter =
+  NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
   late Product product;
   late CartService cartService;
   late AuthService authService;
@@ -176,7 +180,7 @@ class _CartScreenState extends State<CartScreen> {
                                   Row(
                                     children: [
                                       Text(
-                                        '\$${item.price}',
+                                        currencyFormatter.format(item.price * 1000),
                                         style:
                                             CustomTextStyles.titleSmallPrimary,
                                       ),
@@ -236,7 +240,7 @@ class _CartScreenState extends State<CartScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Total: \$${totalPrice.toStringAsFixed(2)}',
+                          'Total: ' +  currencyFormatter.format(totalPrice * 1000),
                           style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold),
                         ),
